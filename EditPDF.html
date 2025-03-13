@@ -119,6 +119,8 @@
   </style>
   <!-- Google AdSense Script -->
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-YOUR_AD_UNIT_ID" crossorigin="anonymous"></script>
+  <!-- pdf-lib Library -->
+  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 </head>
 <body>
   <header>
@@ -154,8 +156,7 @@
 
     <!-- Editing Controls -->
     <section class="controls">
-      <button id="addTextBtn">Add Text</button>
-      <button id="addAnnotationBtn">Add Annotation</button>
+      <button id="editBtn">Edit PDF</button>
       <button id="savePdfBtn">Save PDF</button>
     </section>
 
@@ -187,37 +188,76 @@
     document.addEventListener("DOMContentLoaded", function () {
       const pdfUpload = document.getElementById("pdfUpload");
       const pdfViewer = document.getElementById("pdfViewer");
-      const addTextBtn = document.getElementById("addTextBtn");
-      const addAnnotationBtn = document.getElementById("addAnnotationBtn");
+      const editBtn = document.getElementById("editBtn");
       const savePdfBtn = document.getElementById("savePdfBtn");
       const downloadLink = document.getElementById("downloadLink");
 
       let pdfDoc = null;
+      let pdfBytes = null;
+      let isEditMode = false;
 
       // Load PDF file
-      pdfUpload.addEventListener("change", function (event) {
+      pdfUpload.addEventListener("change", async function (event) {
         const file = event.target.files[0];
         if (file) {
           const fileURL = URL.createObjectURL(file);
           pdfViewer.src = fileURL;
+
+          // Load PDF for editing
+          const arrayBuffer = await file.arrayBuffer();
+          pdfBytes = new Uint8Array(arrayBuffer);
+          pdfDoc = await PDFLib.PDFDocument.load(pdfBytes);
         }
       });
 
-      // Add Text (Placeholder Functionality)
-      addTextBtn.addEventListener("click", function () {
-        alert("Add Text functionality is not implemented in this example.");
+      // Enable Edit Mode
+      editBtn.addEventListener("click", function () {
+        if (!pdfDoc) {
+          alert("Please upload a PDF file first.");
+          return;
+        }
+
+        isEditMode = !isEditMode; // Toggle edit mode
+        editBtn.textContent = isEditMode ? "Exit Edit Mode" : "Edit PDF";
+        alert(isEditMode ? "Edit mode enabled. Click anywhere on the PDF to add text." : "Edit mode disabled.");
       });
 
-      // Add Annotation (Placeholder Functionality)
-      addAnnotationBtn.addEventListener("click", function () {
-        alert("Add Annotation functionality is not implemented in this example.");
+      // Add Text on Click (Edit Mode)
+      pdfViewer.addEventListener("click", async function (event) {
+        if (!isEditMode || !pdfDoc) return;
+
+        const pages = pdfDoc.getPages();
+        const firstPage = pages[0];
+
+        // Get click coordinates relative to the PDF viewer
+        const rect = pdfViewer.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+
+        // Add text at the clicked position
+        firstPage.drawText("New Text", {
+          x: x,
+          y: firstPage.getHeight() - y, // Invert Y-axis for PDF coordinates
+          size: 20,
+          color: PDFLib.rgb(0, 0, 0),
+        });
+
+        alert("Text added to the PDF!");
       });
 
-      // Save PDF (Placeholder Functionality)
-      savePdfBtn.addEventListener("click", function () {
-        alert("Save PDF functionality is not implemented in this example.");
-        // In a real implementation, use a library like pdf-lib to save the edited PDF
+      // Save PDF Functionality
+      savePdfBtn.addEventListener("click", async function () {
+        if (!pdfDoc) {
+          alert("Please upload a PDF file first.");
+          return;
+        }
+
+        // Save the edited PDF
+        const modifiedPdfBytes = await pdfDoc.save();
+        const blob = new Blob([modifiedPdfBytes], { type: "application/pdf" });
+        downloadLink.href = URL.createObjectURL(blob);
         downloadLink.style.display = "block";
+        alert("PDF saved successfully!");
       });
     });
   </script>
